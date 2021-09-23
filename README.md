@@ -116,3 +116,15 @@ kubeadm gave us two join commands. use the provided command to join the other tw
 
 ### workers
 run the other join command to add our workers to the cluster.
+
+you can now run `kubectl get nodes` to see all the available nodes or `kubectl get pods -o wide --all-namespaces` to see all running pods
+
+## troubleshooting
+
+### coredns
+if the coredns pods are stuck creating, run the following commands:
+```
+ip link set cni0 down && ip link set flannel.1 down
+ip link delete cni0 && ip link delete flannel.1
+systemctl restart crio && systemctl restart kubelet 
+```
