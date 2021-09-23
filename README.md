@@ -38,7 +38,7 @@ under services>dns resolver, check "dhcp registration" and "static dhcp" so the 
 ### installation
 create a container with a debian 11 base image. i'm giving it 2 cores, 2 GB of RAM, and 32gb of hard disk space. 
 
-go back to pfsense and under firewall>nat, set up some port forwarding rules for ports like 22, 80, and 443 to 192.168.8.2. this way you can reach your services machine.
+go back to pfsense and under firewall>nat, set up some port forwarding rules for ports like 22, 80, 443, and 6443 to 192.168.8.2. this way you can reach your services machine.
 
 if you didn't add an ssh key, you'll have to edit /etc/ssh/sshd_config and change PermitRootLogin to `yes`
 
@@ -118,6 +118,18 @@ kubeadm gave us two join commands. use the provided command to join the other tw
 run the other join command to add our workers to the cluster.
 
 you can now run `kubectl get nodes` to see all the available nodes or `kubectl get pods -o wide --all-namespaces` to see all running pods
+
+## kubectl on k8s-services
+you'll probably want kubectl on your k8s-services vm. run the following commands to install it:
+```
+curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main"  > /etc/apt/sources.list.d/kubernetes.list
+apt update -y && apt install "kubectl=1.22.2-00" -y
+apt-mark hold kubectl
+```
+
+## scripts
+* `get-kube-config.sh` will detect if you're running it inside the cluster or not and fetch the kubeconfig file from the correct location. you **must** run it from within the cluster as root first or the file will not be where it expects when running outside the cluster
 
 ## troubleshooting
 
