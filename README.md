@@ -32,6 +32,8 @@ under firewall>rules, create an allow rule for whatever port you want to change 
 
 under system>advanced, change the web admin port to whatever port you opened. restart stuff and connect to the web interface on the new port for the next steps.
 
+under services>dns resolver, check "dhcp registration" and "static dhcp" so the machines we set up will be able to resolve each other.
+
 ## k8s-services
 ### installation
 create a container with a debian 11 base image. i'm giving it 2 cores, 2 GB of RAM, and 32gb of hard disk space. 
@@ -44,7 +46,7 @@ generate an ssh key for use within the cluster with ssh-keygen. you'll use this 
 
 ### haproxy
 
-soon(tm)
+run `apt install haproxy -y` and copy `haproxy.cfg` to `/etc/haproxy/haproxy.cfg`. run `sudo systemctl restart haproxy` to load the new configuration
 
 ## k8s-template
 we're gonna now create a virtual machine template so we don't need to redo every install step for every machine.
@@ -83,3 +85,34 @@ as root, do the following:
 * hold the installed kubernetes versions: `apt-mark hold kubelet && apt-mark hold kubeadm && apt-mark hold kubectl`
 
 this concludes setup of the template. shut the vm down and mark it as a template to create your new masters and workers from.
+
+## kubernetes, for real
+
+give all your masters and workers static ips with pfsense
+
+set all the hostnames to the correct values with `hostnamectl set-hostname` and editing `/etc/hosts` with `sed -i "s/k8s-template/$HOSTNAME/g" /etc/hosts`
+
+### initial master
+ssh into k8s-master-01 and run the following command:
+```
+kubeadm init --apiserver-advertise-address=0.0.0.0 --apiserver-cert-extra-sans="$(curl -sSL ifconfig.me),k8s.galenguyer.com" --kubernetes-version=1.22.2 --pod-network-cidr=10.244.0.0/16 --control-plane-endpoint=k8s-services.k8s.stonewall.lan:6443 --upload-certs
+```
+make note of the `kubeadm join` commands init provides. we'll be using those later
+
+run the following commands to get kubectl working easily on k8s-master-01
+```
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+install cluster networking. i'm using flannel because that's what i found. use what you want, it doesn't really matter.
+```
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+```
+
+### other masters
+kubeadm gave us two join commands. use the provided command to join the other two control plane nodes.
+
+### workers
+run the other join command to add our workers to the cluster.
