@@ -69,15 +69,15 @@ as root, do the following:
     * `modprobe br_netfilter`
     * `modprobe overlay`
 * add `net.bridge.bridge-nf-call-iptables=1` and `net.ipv4.ip_forward=1` to `/etc/sysctl.conf`
+    * load settings with `sysctl -p`
 * reboot
 * add some gpg signing keys
     * `curl -sSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/Release.key | apt-key add -`
-    * `curl -sSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.21/Debian_11/Release.key | apt-key add -`
+    * `curl -sSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.22/Debian_11/Release.key | apt-key add -`
     * `curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -`
 * add the libcontainers and cri-o repos
-    * **NOTE:** cri-o 1.22 is out but the debian 11 builds are broken. i'm gonna file an issue if it's not resolved tomorrow
     * `echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/ /" > /etc/apt/sources.list.d/libcontainers.list`
-    * `echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.21/Debian_11/ /" > /etc/apt/sources.list.d/crio.list`
+    * `echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.22/Debian_11/ /" > /etc/apt/sources.list.d/crio.list`
     * `echo "deb https://apt.kubernetes.io/ kubernetes-xenial main"  > /etc/apt/sources.list.d/kubernetes.list`
 * install [cri-o](https://cri-o.io/): `apt update -y && apt install -y cri-o cri-o-runc`
 * enable cri-o with `systemctl enable --now crio`
@@ -102,17 +102,20 @@ make note of the `kubeadm join` commands init provides. we'll be using those lat
 run the following commands to get kubectl working easily on k8s-master-01
 ```
 mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
-install cluster networking. i'm using flannel because that's what i found. use what you want, it doesn't really matter.
+install cluster networking. i'm using calico because flannel seems broken for some reason, idk
 ```
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 ```
 
 ### other masters
 kubeadm gave us two join commands. use the provided command to join the other two control plane nodes.
+
+#### making masters scheduleable
+to allow pods to run on master nodes, run `kubectl taint nodes --all node-role.kubernetes.io/master-`
 
 ### workers
 run the other join command to add our workers to the cluster.
@@ -131,12 +134,44 @@ apt-mark hold kubectl
 ## scripts
 * `get-kube-config.sh` will detect if you're running it inside the cluster or not and fetch the kubeconfig file from the correct location. you **must** run it from within the cluster as root first or the file will not be where it expects when running outside the cluster
 
-## troubleshooting
+## longhorn
+longhorn is a really cute distributed storage driver. 
 
-### coredns
-if the coredns pods are stuck creating, run the following commands:
+### installation
 ```
-ip link set cni0 down && ip link set flannel.1 down
-ip link delete cni0 && ip link delete flannel.1
-systemctl restart crio && systemctl restart kubelet 
+kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.1/deploy/longhorn.yaml
+```
+
+it'll take a hot sec to run and eventually you'll have a lot of running pods with `longhorn-driver-deployer` stuck in Init:0/1 and `longhorn-ui` in a CrashLoopBackoff. once you're in that state, reboot all the kubernetes nodes and it should settle down.
+
+### web dashboard
+
+run `kubectl proxy` and navigate to [http://localhost:8001/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/#/dashboard](http://localhost:8001/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/#/dashboard)
+
+### proxmox
+#### create vms from template
+```
+qm clone --full=1 --name k8s-master-01 100 802
+qm clone --full=1 --name k8s-master-02 100 803
+qm clone --full=1 --name k8s-master-03 100 804
+qm clone --full=1 --name k8s-worker-01 100 805
+qm clone --full=1 --name k8s-worker-02 100 806
+```
+#### start vms
+```
+for i in {802..806}; do qm start $i; done
+```
+
+### update hostnames
+```
+ssh k8s-master-01 hostnamectl set-hostname k8s-master-01
+ssh k8s-master-02 hostnamectl set-hostname k8s-master-02
+ssh k8s-master-03 hostnamectl set-hostname k8s-master-03
+ssh k8s-worker-01 hostnamectl set-hostname k8s-worker-01
+ssh k8s-worker-02 hostnamectl set-hostname k8s-worker-02
+ssh k8s-master-01 sed -i "s/k8s-template/k8s-master-01/g" /etc/hosts
+ssh k8s-master-02 sed -i "s/k8s-template/k8s-master-02/g" /etc/hosts
+ssh k8s-master-03 sed -i "s/k8s-template/k8s-master-03/g" /etc/hosts
+ssh k8s-worker-01 sed -i "s/k8s-template/k8s-worker-01/g" /etc/hosts
+ssh k8s-worker-02 sed -i "s/k8s-template/k8s-worker-02/g" /etc/hosts
 ```
