@@ -172,6 +172,15 @@ kubectl apply -f cert-manager/ca-key-pair.yaml
 kubectl apply -f cert-manager/ca-cluster-issuer.yaml
 ```
 
+## [dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)
+a web ui for kubernetes
+### installation
+`kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.3.1/aio/deploy/recommended.yaml`
+### connection
+run `kubectl proxy` and go to [http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/](http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/)
+#### authorization
+apply the service account with `kubectl apply -f dashboard-adminuser.yaml`. get the token with `kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"; echo`
+
 ## scripts
 * `get-kube-config.sh` will detect if you're running it inside the cluster or not and fetch the kubeconfig file from the correct location. you **must** run it from within the cluster as root first or the file will not be where it expects when running outside the cluster
 
