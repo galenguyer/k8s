@@ -131,11 +131,8 @@ apt update -y && apt install "kubectl=1.22.2-00" -y
 apt-mark hold kubectl
 ```
 
-## scripts
-* `get-kube-config.sh` will detect if you're running it inside the cluster or not and fetch the kubeconfig file from the correct location. you **must** run it from within the cluster as root first or the file will not be where it expects when running outside the cluster
-
 ## longhorn
-longhorn is a really cute distributed storage driver. 
+[longhorn](https://github.com/longhorn/longhorn/) is a really cute distributed storage driver. 
 
 ### installation
 ```
@@ -148,7 +145,20 @@ it'll take a hot sec to run and eventually you'll have a lot of running pods wit
 
 run `kubectl proxy` and navigate to [http://localhost:8001/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/#/dashboard](http://localhost:8001/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/#/dashboard)
 
-### proxmox
+## nginx-ingress
+i'm going to be using the official [kubernetes ingress-nginx](https://github.com/kubernetes/ingress-nginx) ingress controller. i've also had good results with the haproxy ingress controller, but i wanted to try something new.
+
+### installation
+use the customized version of the [baremetal deployment](https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.0.2/deploy/static/provider/baremetal/deploy.yaml). the change binds the nodeport to a constant value so our haproxy installation on k8s-services knows where to proxy to.
+
+```
+kubectl apply -f nginx-ingress.yaml
+```
+
+## scripts
+* `get-kube-config.sh` will detect if you're running it inside the cluster or not and fetch the kubeconfig file from the correct location. you **must** run it from within the cluster as root first or the file will not be where it expects when running outside the cluster
+
+## proxmox
 #### create vms from template
 ```
 qm clone --full=1 --name k8s-master-01 100 802
