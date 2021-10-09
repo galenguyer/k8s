@@ -136,10 +136,8 @@ longhorn is a really cute distributed storage driver.
 
 ### installation
 ```
-kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.1/deploy/longhorn.yaml
+kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.2/deploy/longhorn.yaml
 ```
-
-it'll take a hot sec to run and eventually you'll have a lot of running pods with `longhorn-driver-deployer` stuck in Init:0/1 and `longhorn-ui` in a CrashLoopBackoff. once you're in that state, reboot all the kubernetes nodes and it should settle down.
 
 ### web dashboard
 
