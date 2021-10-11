@@ -185,15 +185,15 @@ apply the service account with `kubectl apply -f dashboard-adminuser.yaml`. get 
 ## proxmox
 #### create vms from template
 ```
-qm clone --full=1 --name k8s-master-01 100 802
-qm clone --full=1 --name k8s-master-02 100 803
-qm clone --full=1 --name k8s-master-03 100 804
-qm clone --full=1 --name k8s-worker-01 100 805
-qm clone --full=1 --name k8s-worker-02 100 806
+qm clone --full=1 --name k8s-master-01 101 801
+qm clone --full=1 --name k8s-master-02 101 802
+qm clone --full=1 --name k8s-master-03 101 803
+qm clone --full=1 --name k8s-worker-01 101 804
+qm clone --full=1 --name k8s-worker-02 101 805
 ```
 #### start vms
 ```
-for i in {802..806}; do qm start $i; done
+for i in {801..805}; do qm start $i; done
 ```
 
 ### update hostnames
