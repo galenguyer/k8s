@@ -7,7 +7,7 @@ spec:
     email: k8s@galenguyer.com
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
-      name: cloudflare-api-key-secret
+      name: letsencrypt-production-secret
     solvers:
     - dns01:
         cloudflare:
