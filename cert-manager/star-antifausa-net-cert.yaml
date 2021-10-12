@@ -1,0 +1,26 @@
+apiVersion: v1
+type: kubernetes.io/tls
+data:
+  ca.crt: ''
+  tls.crt: ''
+  tls.key: ''
+kind: Secret
+metadata:
+  name: star-antifausa-net-cert
+  namespace: cert-manager
+  annotations:
+    kubed.appscode.com/sync: "cert-manager-tls=minio-tenant"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: star-antifausa-net
+  namespace: cert-manager
+spec:
+  secretName: star-antifausa-net-cert
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - 'antifausa.net'
+  - '*.antifausa.net'
