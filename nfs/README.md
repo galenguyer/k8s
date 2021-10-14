@@ -7,6 +7,8 @@ if this is in an lxc container you'll need it to be priviliged and you'll have t
 
 install nfs-kernel-server
 
+read this to set up nfsv4 [https://wiki.debian.org/NFSServerSetup](https://wiki.debian.org/NFSServerSetup)
+
 add the following line to `/etc/exports`
 ```
 /srv/nfs    192.168.8.0/24(rw,sync,no_subtree_check)
