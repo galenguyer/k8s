@@ -88,7 +88,7 @@ this concludes setup of the template. shut the vm down and mark it as a template
 
 ## kubernetes, for real
 
-give all your masters and workers static ips with pfsense
+give all your masters and workers static ips that match your haproxy config with pfsense
 
 set all the hostnames to the correct values with `hostnamectl set-hostname` and editing `/etc/hosts` with `sed -i "s/k8s-template/$HOSTNAME/g" /etc/hosts`
 
@@ -160,7 +160,7 @@ cert-manager is useful for getting certificates from letsencrypt
 from [https://cert-manager.io/docs/installation/kubectl/](https://cert-manager.io/docs/installation/kubectl/):
 
 ```
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.4/cert-manager.yaml
 ```
 
 ### personal ca
