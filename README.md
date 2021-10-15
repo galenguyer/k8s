@@ -12,12 +12,11 @@ pfsense is needed for routing within the vms and nat.
 ### installation
 download the latest amd64 dvd iso from [the website](https://www.pfsense.org/download/).
 
-make sure to set the guest os type to other (pfsense is bsd-based). 1 cores and 2gb of ram is fine.
+make sure to set the guest os type to other (pfsense is bsd-based). 1 core and 512mb of ram is fine.
 
 make sure to give it two network interfaces - one on your public network and one on the internal vnet.
 
 run through the installation with the default values, they'll work fine.
-
 
 ### configuration, part the first
 once the installation and reboot is complete, hit `8` to hop into a shell. run `pfctl -d` to disable the firewall temporarily. connect to https://[server ip] and complete the setup wizard. the default login credentials are `admin:pfsense`. 
@@ -64,42 +63,46 @@ as root, do the following:
 * update all packages and install the following packages: `rsync open-iscsi nfs-common gnupg2 curl apt-transport-https ca-certificates`
 * enable iscsid: `systemctl enable --now iscsid`
 * enable some kernel modules:
-    * `echo "br_netfilter" > /etc/modules-load.d/br_netfilter.conf`
-    * `echo "overlay" > /etc/modules-load.d/overlay.conf`
+    * `echo "br_netfilter" >> /etc/modules-load.d/kubernetes.conf`
+    * `echo "overlay" >> /etc/modules-load.d/kubernetes.conf`
     * `modprobe br_netfilter`
     * `modprobe overlay`
 * add `net.bridge.bridge-nf-call-iptables=1` and `net.ipv4.ip_forward=1` to `/etc/sysctl.conf`
     * load settings with `sysctl -p`
 * reboot
 * add some gpg signing keys
-    * `curl -sSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/Release.key | apt-key add -`
-    * `curl -sSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.22/Debian_11/Release.key | apt-key add -`
-    * `curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -`
+```bash
+curl -sSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/Release.key | apt-key add -
+curl -sSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.22/Debian_11/Release.key | apt-key add -
+curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+```
 * add the libcontainers and cri-o repos
-    * `echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/ /" > /etc/apt/sources.list.d/libcontainers.list`
-    * `echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.22/Debian_11/ /" > /etc/apt/sources.list.d/crio.list`
-    * `echo "deb https://apt.kubernetes.io/ kubernetes-xenial main"  > /etc/apt/sources.list.d/kubernetes.list`
+```bash
+echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/ /" > /etc/apt/sources.list.d/libcontainers.list
+echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.22/Debian_11/ /" > /etc/apt/sources.list.d/crio.list
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main"  > /etc/apt/sources.list.d/kubernetes.list
+```
 * install [cri-o](https://cri-o.io/): `apt update -y && apt install -y cri-o cri-o-runc`
 * enable cri-o with `systemctl enable --now crio`
 * install kubernetes 1.22.2 (latest as of this guide): `apt install "kubelet=1.22.2-00" "kubeadm=1.22.2-00" "kubectl=1.22.2-00"`
 * hold the installed kubernetes versions: `apt-mark hold kubelet && apt-mark hold kubeadm && apt-mark hold kubectl`
 
-this concludes setup of the template. shut the vm down and mark it as a template to create your new masters and workers from.
+this concludes setup of the template. shut the vm down and mark it as a template to create your new control plane and compute nodes from.
 
 ## kubernetes, for real
 
-give all your masters and workers static ips that match your haproxy config with pfsense
+give all your nodes static ips that match your haproxy config with pfsense
 
 set all the hostnames to the correct values with `hostnamectl set-hostname` and editing `/etc/hosts` with `sed -i "s/k8s-template/$HOSTNAME/g" /etc/hosts`
 
-### initial master
-ssh into k8s-master-01 and run the following command:
+### initial control plane
+ssh into k8s-control-plane-01 and run the following command:
 ```
 kubeadm init --apiserver-advertise-address=0.0.0.0 --apiserver-cert-extra-sans="$(curl -sSL ifconfig.me),k8s.galenguyer.com" --kubernetes-version=1.22.2 --pod-network-cidr=10.244.0.0/16 --control-plane-endpoint=k8s-services.k8s.stonewall.lan:6443 --upload-certs
 ```
 make note of the `kubeadm join` commands init provides. we'll be using those later
 
-run the following commands to get kubectl working easily on k8s-master-01
+run the following commands to get kubectl working easily on k8s-control-plane-01
 ```
 mkdir -p $HOME/.kube
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -111,14 +114,14 @@ install cluster networking. i'm using calico because flannel seems broken for so
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 ```
 
-### other masters
+### other control plane
 kubeadm gave us two join commands. use the provided command to join the other two control plane nodes.
 
-#### making masters scheduleable
-to allow pods to run on master nodes, run `kubectl taint nodes --all node-role.kubernetes.io/master-`
+#### making control plane scheduleable
+to allow pods to run on control plane nodes, run `kubectl taint nodes --all node-role.kubernetes.io/master-`
 
-### workers
-run the other join command to add our workers to the cluster.
+### compute
+run the other join command to add our compute nodes to the cluster.
 
 you can now run `kubectl get nodes` to see all the available nodes or `kubectl get pods -o wide --all-namespaces` to see all running pods
 
@@ -185,11 +188,11 @@ apply the service account with `kubectl apply -f dashboard-adminuser.yaml`. get 
 ## proxmox
 #### create vms from template
 ```
-qm clone --full=1 --name k8s-master-01 101 801
-qm clone --full=1 --name k8s-master-02 101 802
-qm clone --full=1 --name k8s-master-03 101 803
-qm clone --full=1 --name k8s-worker-01 101 804
-qm clone --full=1 --name k8s-worker-02 101 805
+qm clone --full=1 --name k8s-control-plane-01 100 801
+qm clone --full=1 --name k8s-control-plane-02 100 802
+qm clone --full=1 --name k8s-control-plane-03 100 803
+qm clone --full=1 --name k8s-compute-01 100 804
+qm clone --full=1 --name k8s-compute-02 100 805
 ```
 #### start vms
 ```
@@ -198,14 +201,14 @@ for i in {801..805}; do qm start $i; done
 
 ### update hostnames
 ```
-ssh k8s-master-01 hostnamectl set-hostname k8s-master-01
-ssh k8s-master-02 hostnamectl set-hostname k8s-master-02
-ssh k8s-master-03 hostnamectl set-hostname k8s-master-03
-ssh k8s-worker-01 hostnamectl set-hostname k8s-worker-01
-ssh k8s-worker-02 hostnamectl set-hostname k8s-worker-02
-ssh k8s-master-01 sed -i "s/k8s-template/k8s-master-01/g" /etc/hosts
-ssh k8s-master-02 sed -i "s/k8s-template/k8s-master-02/g" /etc/hosts
-ssh k8s-master-03 sed -i "s/k8s-template/k8s-master-03/g" /etc/hosts
-ssh k8s-worker-01 sed -i "s/k8s-template/k8s-worker-01/g" /etc/hosts
-ssh k8s-worker-02 sed -i "s/k8s-template/k8s-worker-02/g" /etc/hosts
+ssh k8s-control-plane-01 hostnamectl set-hostname k8s-control-plane-01
+ssh k8s-control-plane-02 hostnamectl set-hostname k8s-control-plane-02
+ssh k8s-control-plane-03 hostnamectl set-hostname k8s-control-plane-03
+ssh k8s-compute-01 hostnamectl set-hostname k8s-compute-01
+ssh k8s-compute-02 hostnamectl set-hostname k8s-compute-02
+ssh k8s-control-plane-01 sed -i "s/k8s-template/k8s-control-plane-01/g" /etc/hosts
+ssh k8s-control-plane-02 sed -i "s/k8s-template/k8s-control-plane-02/g" /etc/hosts
+ssh k8s-control-plane-03 sed -i "s/k8s-template/k8s-control-plane-03/g" /etc/hosts
+ssh k8s-compute-01 sed -i "s/k8s-template/k8s-compute-01/g" /etc/hosts
+ssh k8s-compute-02 sed -i "s/k8s-template/k8s-compute-02/g" /etc/hosts
 ```
