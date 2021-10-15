@@ -8,8 +8,6 @@ kind: Secret
 metadata:
   name: star-antifausa-net-cert
   namespace: cert-manager
-  annotations:
-    kubed.appscode.com/sync: "cert-manager-tls=minio-tenant"
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
