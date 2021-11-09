@@ -24,7 +24,7 @@ if you're using different settings update the information in `deployment.yaml`
 ## testing
 you can test the provisioner with the following pod and pvc:
 
-```
+```yaml
 kind: Pod
 apiVersion: v1
 metadata:
@@ -52,7 +52,7 @@ apiVersion: v1
 metadata:
   name: test-claim
 spec:
-  storageClassName: managed-nfs-storage
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   resources:

@@ -9,11 +9,11 @@ set -o nounset
 
 mkdir -p ~/.kube/
 
-if [ -n "$(dig +short k8s-control-plane-01.k8s.stonewall.lan)" ]; then
+if [ -n "$(dig +short k8s-control-plane-01.k8s.iscariot.lan)" ]; then
     echo 'running within cluster...'
     scp k8s-control-plane-01:/etc/kubernetes/admin.conf ~/.kube/config
 else
     echo 'running outside cluster...'
     scp root@k8s.galenguyer.com:/root/.kube/config ~/.kube/config
-    sed -i 's/k8s-services.k8s.stonewall.lan/k8s.galenguyer.com/g' ~/.kube/config
+    sed -i 's/k8s-services.k8s.iscariot.lan/k8s.galenguyer.com/g' ~/.kube/config
 fi
