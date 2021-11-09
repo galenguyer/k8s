@@ -84,7 +84,7 @@ echo "deb https://apt.kubernetes.io/ kubernetes-xenial main"  > /etc/apt/sources
 ```
 * install [cri-o](https://cri-o.io/): `apt update -y && apt install -y cri-o cri-o-runc`
 * enable cri-o with `systemctl enable --now crio`
-* install kubernetes 1.22.2 (latest as of this guide): `apt install "kubelet=1.22.2-00" "kubeadm=1.22.2-00" "kubectl=1.22.2-00"`
+* install kubernetes 1.22.3 (latest as of this guide): `apt install "kubelet=1.22.3-00" "kubeadm=1.22.3-00" "kubectl=1.22.3-00"`
 * hold the installed kubernetes versions: `apt-mark hold kubelet && apt-mark hold kubeadm && apt-mark hold kubectl`
 
 this concludes setup of the template. shut the vm down and mark it as a template to create your new control plane and compute nodes from.
@@ -98,7 +98,7 @@ set all the hostnames to the correct values with `hostnamectl set-hostname` and 
 ### initial control plane
 ssh into k8s-control-plane-01 and run the following command:
 ```
-kubeadm init --apiserver-advertise-address=0.0.0.0 --apiserver-cert-extra-sans="$(curl -sSL ifconfig.me),k8s.galenguyer.com" --kubernetes-version=1.22.2 --pod-network-cidr=10.244.0.0/16 --control-plane-endpoint=k8s-services.k8s.stonewall.lan:6443 --upload-certs
+kubeadm init --apiserver-advertise-address=0.0.0.0 --apiserver-cert-extra-sans="$(curl -sSL ifconfig.me),k8s.galenguyer.com" --kubernetes-version=1.22.3 --pod-network-cidr=10.244.0.0/16 --control-plane-endpoint=k8s-services.k8s.stonewall.lan:6443 --upload-certs
 ```
 make note of the `kubeadm join` commands init provides. we'll be using those later
 
@@ -130,7 +130,7 @@ you'll probably want kubectl on your k8s-services vm. run the following commands
 ```
 curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 echo "deb https://apt.kubernetes.io/ kubernetes-xenial main"  > /etc/apt/sources.list.d/kubernetes.list
-apt update -y && apt install "kubectl=1.22.2-00" -y
+apt update -y && apt install "kubectl=1.22.3-00" -y
 apt-mark hold kubectl
 ```
 
